@@ -6,18 +6,6 @@
 //  CONSTANTEN / VARIABLEN
 //        
 //##############################################################################    
-
-//#####################
-//       CONFIG
-//#####################
-
-#define CONF_BUZZPIN              4    // Buzzer Pin 4
-#define CONF_BUZZDEFAULTFREQ      2000 // Sendet einen 2KHz Signal
-#define CONF_BUZZDEFAULTDURATION  100  // Sendet einen Signal für 100ms
-#define CONF_BUZZCACHEMAX         20   // Wie viele Buzz anweisungen können gleichzeitig gespeichert werden 
-
-#define CONF_RGBPIN               2    // RGB Datenleitung Pin
-#define CONF_NUMPIXELS            4    // Anzahl der WS2812 LEDs oder der NEOPIXEL
   
 //#####################
 //  Buzzer Variablen
@@ -32,19 +20,33 @@ long buzzduration = 0l;
 //Ist ein Zwischen Spiecher womit man die ColorIDs für denn Jeweilige RGB-PIXEL Speichern kann
 int ledcache[CONF_NUMPIXELS] = {};
 
+const int coloramount = 9;
 //Hier werden alle möglichen verwendbaren Farbschemas in einem Array gespeichert
-//INDEX = {GREEN, RED, BLUE}
-const int colorpallet[9][3] = 
+//INDEX = {RED, GREEN, BLUE}
+const int colorpallet[coloramount][3] = 
 {
   {0, 0, 0},    //CLEAR   || ID = 0
-  {25, 0, 0},   //GREEN   || ID = 1
-  {0, 25, 0},   //RED     || ID = 2
+  {0, 25, 0},   //GREEN   || ID = 1
+  {25, 0, 0},   //RED     || ID = 2
   {35, 35, 35}, //WHITE   || ID = 3
   {25, 25, 0},  //YELLOW  || ID = 4
   {0, 0, 25},   //BLUE    || ID = 5
-  {0, 13, 25},  //PURPULE || ID = 6
-  {13, 25, 0},  //ORANGE  || ID = 7
-  {13, 0, 13}   //CYAN    || ID = 8
+  {13, 0, 25},  //PURPULE || ID = 6
+  {25, 13, 0},  //ORANGE  || ID = 7
+  {0, 13, 13}   //CYAN    || ID = 8
+};
+
+const String colorname[coloramount] = 
+{
+  "CLEAR",   //ID = 0
+  "GREEN",   //ID = 1
+  "RED",     //ID = 2
+  "WHITE",   //ID = 3
+  "YELLOW",  //ID = 4
+  "BLUE",    //ID = 5
+  "PURPULE", //ID = 6
+  "ORANGE",  //ID = 7
+  "CYAN"     //ID = 8
 };
 
 //##############################################################################
@@ -105,14 +107,7 @@ void updateBuzz()
 
 boolean isBuzzing()
 { 
-  if (buzzduration > 0 && millis() <= buzzduration)
-  {
-    return true;
-  }
-  else
-  {
-    return false;
-  }
+  return buzzduration > 0 && millis() <= buzzduration;
 }
 
 //##############################################################################
@@ -120,6 +115,15 @@ boolean isBuzzing()
 //  Methoden für die RGB LEDs
 //        
 //##############################################################################
+
+String getColorNameById(int colorid)
+{
+  if(colorname[colorid] != "")
+  {
+    return colorname[colorid];
+  }
+  return "UNKNOWNCOLOR";
+}
 
 void loadPixelsFromCache()
 {
@@ -132,19 +136,25 @@ void loadPixelsFromCache()
 //Eine Funktion um vereinfacht die Farben von den RGB-LEDs ändern zu können
 void updatePixel(int pixelid, int colorid, boolean updatecache) 
 {
-  Serial.print("UPDATE PIXELCOLOR ID:");
+  Serial.print("UPDATE NEOPIXEL ID:");
   Serial.print(pixelid);
   Serial.print(" with ColorID:");
-  Serial.println(colorid);
+  Serial.print(colorid);
+  Serial.print(" (");
+  Serial.print(getColorNameById(colorid));
+  Serial.println(")");
   if(updatecache)
   {
     Serial.print("UPDATE PIXELCACHE ID:");
     Serial.print(pixelid);
     Serial.print(" with ColorID:");
-    Serial.println(colorid);
+    Serial.print(colorid);
+    Serial.print(" (");
+    Serial.print(getColorNameById(colorid));
+    Serial.println(")");
     ledcache[pixelid] = colorid;
   }
-  pixels.setPixelColor(pixelid, pixels.Color(colorpallet[colorid][0], colorpallet[colorid][1], colorpallet[colorid][2]));
+  pixels.setPixelColor(pixelid, pixels.Color(colorpallet[colorid][1], colorpallet[colorid][0], colorpallet[colorid][2]));
   pixels.show();
 }
 
@@ -155,13 +165,13 @@ void updatePixel(int pixelid, int colorid)
 }
 
 //Löscht alle Pixels und schaltet sie aus
-void clearpixels()
+void clearPixels()
 {
-  clearpixels(true);
+  clearPixels(true);
 }
 
 //Löscht alle Pixels und schaltet sie aus
-void clearpixels(boolean updatecache)
+void clearPixels(boolean updatecache)
 {
   Serial.println("CLEAR PIXELS");
   if(updatecache)
