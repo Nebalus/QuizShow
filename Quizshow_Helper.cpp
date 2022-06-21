@@ -133,6 +133,19 @@ void loadPixelsFromCache()
   }
 }
 
+void updateAllPixels(int colorid)
+{
+  updateAllPixels(colorid, true);
+}
+
+void updateAllPixels(int colorid, boolean updatecache)
+{
+  for(int i = 0; i < CONF_NUMPIXELS; i++)
+  {
+    updatePixel(i, colorid, updatecache);
+  }
+}
+
 //Eine Funktion um vereinfacht die Farben von den RGB-LEDs ändern zu können
 void updatePixel(int pixelid, int colorid, boolean updatecache) 
 {

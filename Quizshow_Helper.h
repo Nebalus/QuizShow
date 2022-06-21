@@ -30,10 +30,12 @@ void updateBuzz();
 boolean isBuzzing();
 
 String getColorNameById(int colorid);
+void loadPixelsFromCache();
+void updateAllPixels(int colorid);
+void updateAllPixels(int colorid, boolean updatecache);
 void clearPixels();
 void clearPixels(boolean updatecache);
 void updatePixel(int pixelid, int colorid, boolean updatecache);
 void updatePixel(int pixelid, int colorid);
-void loadPixelsFromCache();
 
 #endif
