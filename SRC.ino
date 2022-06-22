@@ -50,7 +50,7 @@ int currentscenario = SETUP_ROUNDS;
 int maxrounds = 10;
 long maxanswertime = 3000; //In Millis
 
-int selectedplayerid = -1;
+int selectedplayerid = 3;
 long playeranswertimestamp = -1; 
 int currentround = 1;
 
@@ -88,33 +88,47 @@ void loop()
   {
     if (isButtonPressed(buttonid))
     {
-      const long timepressed = millis() - buttonpins[buttonid][1];
-      if(timepressed > 11)
+      const long lastupdated = buttonpins[buttonid][2] - buttonpins[buttonid][1];
+      
+      if(lastupdated > 0)
       {
-        const long lastupdated = buttonpins[buttonid][2] - buttonpins[buttonid][1];
+        const long timepressed = millis() - buttonpins[buttonid][1];
+       
         if(lastupdated <= 500 && timepressed >= 500)
         {
           //Wird ein mal ausgeführt wenn der knopf 0.5 sekunden gedrückt wurde
-       
+
+          Serial.print("Buttonid"); 
+          Serial.println(buttonid); 
+          Serial.print("isMod"); 
+          Serial.println(isModeratorButton(buttonid)); 
+          Serial.print("isRedPressed"); 
+          Serial.println(isButtonPressed(modredbuttonid)); 
+          Serial.print("isGreenPressed"); 
+          Serial.println(isButtonPressed(modgreenbuttonid)); 
+
           switch(currentscenario)
-          {
+          { 
             case SETUP_ROUNDS:
               if(isModeratorButton(buttonid) && isButtonPressed(modgreenbuttonid) && isButtonPressed(modredbuttonid))
               {
+                Serial.println("SETUP_ROUNDS-LONGPRESS"); 
                 currentscenario = SETUP_TIME;
                 buzz(250);
               }
               break;
-              
+
             case SETUP_TIME:
+              Serial.println("SETUP_TIME-LONGPRESS"); 
               if(isModeratorButton(buttonid) && isButtonPressed(modgreenbuttonid) && isButtonPressed(modredbuttonid))
               {
                 currentscenario = PLAYERREGISTER;
                 buzz(250);
               }
-              break;
-
+              break;    
+                      
             case PLAYERREGISTER:
+              Serial.println("PLAYERREGISTER-LONGPRESS"); 
               if(isModeratorButton(buttonid) && isButtonPressed(modgreenbuttonid) && isButtonPressed(modredbuttonid))
               {
                 currentscenario = WAITBUZZ;
@@ -123,6 +137,7 @@ void loop()
               break;
 
             case END:
+              Serial.println("END-LONGPRESS"); 
               if(isModeratorButton(buttonid) && isButtonPressed(modgreenbuttonid) && isButtonPressed(modredbuttonid))
               {
                 currentscenario = CHANGESETUPREQUEST;
@@ -139,7 +154,7 @@ void loop()
         //Wird ein mal ausgeführt wenn der knopf dedrückt wurde
         switch(currentscenario)
         {
-          case SETUP_ROUNDS:          
+          case SETUP_ROUNDS:    
             if(isModeratorButton(buttonid))
             {
               if(modgreenbuttonid == buttonid)
@@ -168,7 +183,7 @@ void loop()
               }
               else if(modredbuttonid == buttonid)
               {
-                if(maxanswertime - 1000 > 1000)
+                if(maxanswertime - 1000 >= 1000)
                 {
                   maxanswertime -= 1000;
                   buzz(100);
@@ -180,6 +195,7 @@ void loop()
           case PLAYERREGISTER:
             if(isPlayerButton(buttonid))
             {
+              buzz(100);
               const int playerbuttonid = getPlayerButtonId(buttonid);
               if(!isPlayerButtonRegistered(playerbuttonid))
               {
@@ -255,6 +271,37 @@ void loop()
   }
 
   lcd.clear();
+  Serial.println(currentscenario);
+  switch(currentscenario)
+  {
+    case SETUP_ROUNDS:
+      Serial.println("SETUP_ROUNDS");
+      break;
+
+    case SETUP_TIME:
+      Serial.println("SETUP_TIME");
+      break;
+      
+    case WAITBUZZ:
+      Serial.println("WAITBUZZ");
+      break;
+
+    case PLAYERBUZZED:
+      Serial.println("PLAYERBUZZED");
+      break;
+
+    case CHANGESETUPREQUEST:
+      Serial.println("CHANGESETUPREQUEST");
+      break;
+ 
+    case PLAYERREGISTER:
+      Serial.println("PLAYERREGISTER");
+      break;
+
+    case END:
+      Serial.println("END");
+      break;
+  }
   
   switch(currentscenario)
   {
@@ -269,8 +316,9 @@ void loop()
       lcd.setCursor(0, 1);
       lcd.print(maxanswertime);
       break;
-
+      
     case WAITBUZZ:
+      Serial.println("WAITBUZZ");
       lcd.print("Runde:");
       lcd.setCursor(6, 0);
       lcd.print(currentround);
@@ -286,7 +334,7 @@ void loop()
       {
         lcd.print(remainingtime / 1000);
         lcd.setCursor(2, 1);
-        lcd.print("-SEKUNDEN");
+        lcd.print("- SEKUNDEN");
       }
       else
       {
@@ -309,10 +357,23 @@ void loop()
       lcd.setCursor(7, 1);
       lcd.print("NEIN");
       break;
+ 
+    case PLAYERREGISTER:
+      lcd.print("REGESTRIERE:");
+      lcd.setCursor(0, 1);
+      byte playercount = 0;
+      for(int i = 0; i < playerbuttonamount; i++)
+      {
+        if(isPlayerButtonRegistered(i))
+        {
+          playercount++;
+        }
+      }
+      lcd.print(playercount);
+      break;
   }
-  
   tick();
-  delay(10);
+  delay(25);
 }
 
 void clearCache()
