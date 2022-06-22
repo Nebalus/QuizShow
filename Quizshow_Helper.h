@@ -14,6 +14,8 @@
 #define CONF_RGBPIN               2    // RGB Datenleitung Pin
 #define CONF_NUMPIXELS            4    // Anzahl der WS2812 LEDs oder der NEOPIXEL
 
+#define CONF_TICKDELAY            30   // Legt für die loop() methode die verzögerung in ms fest womit es ein nächstes mal ausgeführt werden soll
+
 //##############################################################################################################################
 
 #include <Arduino.h>

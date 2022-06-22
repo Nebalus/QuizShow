@@ -76,6 +76,7 @@ void inithelperlib()
 void tick()
 {
   updateBuzz();
+  delay(CONF_TICKDELAY);
 }
 
 //##############################################################################

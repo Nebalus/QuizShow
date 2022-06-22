@@ -26,8 +26,8 @@ int playerbuttons[playerbuttonamount][5] =
 {
   {0, 0, 7, -1, 0},
   {1, 1, 8, -1, 0},
-  {2, 2, 6, -1, 0},
-  {3, 3, 4, -1, 0}
+  {2, 2, 4, -1, 0},
+  {3, 3, 6, -1, 0}
 };
 
 const int modgreenbuttonid = 4;
@@ -36,6 +36,8 @@ const int modredbuttonid = 5;
 //############################################################
 
 enum scenarios {
+    _UNKNOWN_ = -1,
+    BOOT = 0,
     SETUP_ROUNDS = 1, 
     SETUP_TIME = 2,
     PLAYERREGISTER = 3,
@@ -45,12 +47,12 @@ enum scenarios {
     CHANGESETUPREQUEST = 7
 };
 
-int currentscenario = SETUP_ROUNDS;
+int currentscenario = _UNKNOWN_;
 
 int maxrounds = 10;
 long maxanswertime = 3000; //In Millis
 
-int selectedplayerid = 3;
+int selectedplayerid = -1;
 long playeranswertimestamp = -1; 
 int currentround = 1;
 
@@ -64,7 +66,8 @@ void setup()
 
   lcd.init();
   lcd.backlight();
-
+  changeScenario(BOOT);
+  
   //Inizialisiert die Button Pins
   for (int i = 0; i < buttonamount; i++)
   {
@@ -80,6 +83,7 @@ void setup()
 
   buzz(500);
   clearPixels(true);
+  changeScenario(SETUP_ROUNDS);
 }
 
 void loop() 
@@ -110,40 +114,48 @@ void loop()
           switch(currentscenario)
           { 
             case SETUP_ROUNDS:
+            {
               if(isModeratorButton(buttonid) && isButtonPressed(modgreenbuttonid) && isButtonPressed(modredbuttonid))
               {
                 Serial.println("SETUP_ROUNDS-LONGPRESS"); 
-                currentscenario = SETUP_TIME;
+                changeScenario(SETUP_TIME);
                 buzz(250);
               }
-              break;
+            }
+            break;
 
             case SETUP_TIME:
+            {
               Serial.println("SETUP_TIME-LONGPRESS"); 
               if(isModeratorButton(buttonid) && isButtonPressed(modgreenbuttonid) && isButtonPressed(modredbuttonid))
               {
-                currentscenario = PLAYERREGISTER;
+                changeScenario(PLAYERREGISTER);
                 buzz(250);
               }
-              break;    
+            }
+            break;   
                       
             case PLAYERREGISTER:
+            {
               Serial.println("PLAYERREGISTER-LONGPRESS"); 
               if(isModeratorButton(buttonid) && isButtonPressed(modgreenbuttonid) && isButtonPressed(modredbuttonid))
               {
-                currentscenario = WAITBUZZ;
+                changeScenario(WAITBUZZ);
                 buzz(250);
               }
-              break;
+            }
+            break;
 
             case END:
+            {
               Serial.println("END-LONGPRESS"); 
               if(isModeratorButton(buttonid) && isButtonPressed(modgreenbuttonid) && isButtonPressed(modredbuttonid))
               {
-                currentscenario = CHANGESETUPREQUEST;
+                changeScenario(CHANGESETUPREQUEST);
                 buzz(250);
               }
-              break;
+            }
+            break;
           }
         }
         
@@ -155,6 +167,8 @@ void loop()
         switch(currentscenario)
         {
           case SETUP_ROUNDS:    
+          {
+            Serial.println("SETUP_ROUNDS-PRESS"); 
             if(isModeratorButton(buttonid))
             {
               if(modgreenbuttonid == buttonid)
@@ -169,11 +183,15 @@ void loop()
                   maxrounds--;
                   buzz(100);
                 }
-              }      
+              }
+              updateLCDContent();      
             }
-            break;
+          }
+          break;
             
           case SETUP_TIME:
+          {
+            Serial.println("SETUP_TIME-PRESS"); 
             if(isModeratorButton(buttonid))
             {
               if(modgreenbuttonid == buttonid)
@@ -189,24 +207,31 @@ void loop()
                   buzz(100);
                 }
               }
+              updateLCDContent();      
             }      
-            break;
+          }
+          break;
 
           case PLAYERREGISTER:
+          {
+            Serial.println("PLAYERREGISTER-PRESS"); 
             if(isPlayerButton(buttonid))
             {
-              buzz(100);
               const int playerbuttonid = getPlayerButtonId(buttonid);
               if(!isPlayerButtonRegistered(playerbuttonid))
               {
                 updatePixel(playerbuttons[playerbuttonid][1], playerbuttons[playerbuttonid][2], true);
                 playerbuttons[playerbuttonid][3] = 1;
                 buzz(250);
+                updateLCDContent();
               }
             }
-            break;
+          }
+          break;
             
           case WAITBUZZ:
+          {
+            Serial.println("WAITBUZZ-PRESS"); 
             if(isPlayerButton(buttonid))
             {
               const int playerid = getPlayerButtonId(buttonid);
@@ -217,12 +242,15 @@ void loop()
                 buzz(1000);
                 selectedplayerid = playerid;
                 playeranswertimestamp = millis() + maxanswertime;
-                currentscenario = PLAYERBUZZED;
+                changeScenario(PLAYERBUZZED);
               }
             }
-            break;
+          }
+          break;
             
           case PLAYERBUZZED:
+          {
+            Serial.println("PLAYERBUZZED-PRESS"); 
             if(isModeratorButton(buttonid))
             {
               if(modgreenbuttonid == buttonid)
@@ -232,34 +260,40 @@ void loop()
               
               if(currentround >= maxrounds)
               {
-                 currentscenario = END;
+                 changeScenario(END);
               }
               else
               {
                 currentround++;
-                currentscenario = WAITBUZZ;
+                changeScenario(WAITBUZZ);
               }
             }
-            break;
+          }
+          break;
              
           case END:
-            
-            break;
+          {
+            Serial.println("END-PRESS");
+          }
+          break;
 
           case CHANGESETUPREQUEST:
+          {
+            Serial.println("CHANGESETUPREQUEST-PRESS");
+            clearCache();
             if(isModeratorButton(buttonid))
             {
               if(modgreenbuttonid == buttonid)
               {
-                currentscenario = SETUP_ROUNDS;
+                changeScenario(SETUP_ROUNDS);
               }
               else if(modredbuttonid == buttonid)
               {
-                currentscenario = PLAYERREGISTER;
+                changeScenario(PLAYERREGISTER);
               }      
-              clearCache();
             }
-            break;
+          }
+          break;
         }
       }
     }
@@ -270,95 +304,76 @@ void loop()
     buttonpins[buttonid][2] = millis();
   }
 
-  lcd.clear();
-  Serial.println(currentscenario);
+  //Wird Immer ausgefuhrt
   switch(currentscenario)
   {
-    case SETUP_ROUNDS:
-      Serial.println("SETUP_ROUNDS");
-      break;
-
-    case SETUP_TIME:
-      Serial.println("SETUP_TIME");
-      break;
-      
-    case WAITBUZZ:
-      Serial.println("WAITBUZZ");
-      break;
-
     case PLAYERBUZZED:
-      Serial.println("PLAYERBUZZED");
-      break;
-
-    case CHANGESETUPREQUEST:
-      Serial.println("CHANGESETUPREQUEST");
-      break;
- 
-    case PLAYERREGISTER:
-      Serial.println("PLAYERREGISTER");
-      break;
-
-    case END:
-      Serial.println("END");
-      break;
-  }
-  
-  switch(currentscenario)
-  {
-    case SETUP_ROUNDS:
-      lcd.print("SETUP-RUNDEN:");
-      lcd.setCursor(0, 1);
-      lcd.print(maxrounds);
-      break;
-
-    case SETUP_TIME:
-      lcd.print("SETUP-ZEIT:");
-      lcd.setCursor(0, 1);
-      lcd.print(maxanswertime);
-      break;
-      
-    case WAITBUZZ:
-      Serial.println("WAITBUZZ");
-      lcd.print("Runde:");
-      lcd.setCursor(6, 0);
-      lcd.print(currentround);
-      lcd.setCursor(0, 1);
-      lcd.print("WAIT 4 BUZZ");
-      break;
-
-    case PLAYERBUZZED:
-      lcd.print(getColorNameById(playerbuttons[selectedplayerid][2]));
-      lcd.setCursor(0, 1);
+    {
       const long remainingtime = playeranswertimestamp - millis();
-      if(remainingtime > 0)
-      {
-        lcd.print(remainingtime / 1000);
-        lcd.setCursor(2, 1);
-        lcd.print("- SEKUNDEN");
-      }
-      else
+      if(remainingtime < 0)
       {
         if(currentround >= maxrounds)
         {
-           currentscenario = END;
+           changeScenario(END);
         }
         else
         {
           currentround++;
-          currentscenario = WAITBUZZ;
+          changeScenario(WAITBUZZ);
         }
       }
-      break;
+      else
+      {
+        updateLCDContent();
+      }
+    }
+    break;
+  }
+  
+  tick();
+}
 
-    case CHANGESETUPREQUEST:
-      lcd.print("Conf Ändern?");
-      lcd.setCursor(1, 1);
-      lcd.print("JA");
-      lcd.setCursor(7, 1);
-      lcd.print("NEIN");
-      break;
- 
+void changeScenario(int newscenarioid)
+{
+  currentscenario = newscenarioid;
+  updateLCDContent();
+}
+
+
+void updateLCDContent()
+{
+  lcd.clear();
+  
+  switch(currentscenario)
+  {
+    case BOOT:
+    {
+      lcd.print("BOOTING...");
+      lcd.setCursor(0, 1);
+      lcd.print("Bitte Warte!");  
+    }
+    break;
+    
+    case SETUP_ROUNDS:
+    {
+      lcd.print("SETUP-RUNDEN:");
+      lcd.setCursor(0, 1);
+      lcd.print(maxrounds);
+    }
+    break;
+      
+    case SETUP_TIME:
+    {
+      lcd.print("SETUP-ZEIT:");
+      lcd.setCursor(0, 1);
+      lcd.print(maxanswertime / 1000);
+      lcd.setCursor(2, 1);
+      lcd.print("- SEK");
+    }
+    break;
+
     case PLAYERREGISTER:
+    {
       lcd.print("REGESTRIERE:");
       lcd.setCursor(0, 1);
       byte playercount = 0;
@@ -370,10 +385,40 @@ void loop()
         }
       }
       lcd.print(playercount);
-      break;
+    }
+    break;
+    
+    case WAITBUZZ:
+    {
+      Serial.println("WAITBUZZ");
+      lcd.print("Runde:");
+      lcd.setCursor(6, 0);
+      lcd.print(currentround);
+      lcd.setCursor(0, 1);
+      lcd.print("WAIT 4 BUZZ");
+    }
+    break;
+
+    case PLAYERBUZZED:
+    {
+      lcd.print(getColorNameById(playerbuttons[selectedplayerid][2]));
+      lcd.setCursor(0, 1);
+      lcd.print((playeranswertimestamp - millis()) / 1000);
+      lcd.setCursor(2, 1);
+      lcd.print("- SEK");
+    }
+    break;
+
+    case CHANGESETUPREQUEST:
+    {
+      lcd.print("Conf Aendern?");
+      lcd.setCursor(3, 1);
+      lcd.print("JA");
+      lcd.setCursor(9, 1);
+      lcd.print("NEIN");
+    }
+    break;
   }
-  tick();
-  delay(25);
 }
 
 void clearCache()
