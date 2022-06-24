@@ -1,17 +1,19 @@
 //Made By Aiden Nygaard
-#include "Quizshow_Helper.h"
+#include "Quizshow_Helper.h" // Importiert die integerte libary
+#include "pezo_pitches.h" // Importiert die integerte libary
 
 #include <Wire.h> 
 #include <LiquidCrystal_I2C.h>
 
-// Set the LCD address to 0x27 for a 16 chars and 2 line display
-LiquidCrystal_I2C lcd(0x27, 16, 2);
+// Setzt denn LCD addresse zu 0x27 für ein 16 zeichen und 2 Reihen Display
+LiquidCrystal_I2C lcd(0x27, 16, 2);  
 
 //############################################################
 
-const int buttonamount = 6;
+#define BUTTONAMOUNT   6 // Setzt die Knopf anzahl zu 6
+
 //INDEX: {ButtonPin, Pressduration, Lastdcheckupdate}
-long buttonpins[buttonamount][3] = { 
+long buttonpins[BUTTONAMOUNT][3] = { 
   {12, 0, 0},  //  ID: 0
   {11, 0, 0},  //  ID: 1
   {10, 0, 0},  //  ID: 2
@@ -20,9 +22,10 @@ long buttonpins[buttonamount][3] = {
   {7, 0, 0}    //  ID: 5
 };
 
-const int playerbuttonamount = 4;
+#define PLAYERBUTTONAMOUNT   4
+
 //INDEX: {buttonpin arrayid, RGBLedid, ColorId, isRequested, Points}
-int playerbuttons[playerbuttonamount][5] = 
+int playerbuttons[PLAYERBUTTONAMOUNT][5] = 
 {
   {0, 0, 7, -1, 0},
   {1, 1, 8, -1, 0},
@@ -47,7 +50,7 @@ enum scenarios {
     CHANGESETUPREQUEST = 7
 };
 
-int currentscenario = _UNKNOWN_;
+scenarios currentscenario = PLAYERREGISTER;
 
 int maxrounds = 10;
 long maxanswertime = 3000; //In Millis
@@ -57,6 +60,14 @@ long playeranswertimestamp = -1;
 int currentround = 1;
 
 //############################################################
+
+const long SHORTDELAY = 100l;
+const long NORMALDELAY = 250l;
+const long LONGDELAY = 500l;
+const long ETERNITYDELAY = 1000l;
+
+//############################################################
+
 
 void setup()
 {
@@ -69,26 +80,28 @@ void setup()
   changeScenario(BOOT);
   
   //Inizialisiert die Button Pins
-  for (int i = 0; i < buttonamount; i++)
+  for (int i = 0; i < BUTTONAMOUNT; i++)
   {
     pinMode(buttonpins[i][0], INPUT);
   }
 
   //Testet ob alle RGB LEDS leuchten
-  for(int i = 0; i < playerbuttonamount; i++)
+  for(int i = 0; i < PLAYERBUTTONAMOUNT; i++)
   {
     updatePixel(i, 8);
-    delay(500);
+    delay(LONGDELAY);
   }
 
-  buzz(500);
+  buzz(SHORTDELAY, NOTE_F7, true);
+  buzz(SHORTDELAY, NOTE_D7);
+  buzz(SHORTDELAY, NOTE_G7);
   clearPixels(true);
   changeScenario(SETUP_ROUNDS);
 }
 
 void loop() 
 {
-  for (int buttonid = 0; buttonid < buttonamount; buttonid++)
+  for (int buttonid = 0; buttonid < BUTTONAMOUNT; buttonid++)
   {
     if (isButtonPressed(buttonid))
     {
@@ -102,13 +115,13 @@ void loop()
         {
           //Wird ein mal ausgeführt wenn der knopf 0.5 sekunden gedrückt wurde
 
-          Serial.print("Buttonid"); 
+          Serial.print("Buttonid: "); 
           Serial.println(buttonid); 
-          Serial.print("isMod"); 
+          Serial.print("isMod: "); 
           Serial.println(isModeratorButton(buttonid)); 
-          Serial.print("isRedPressed"); 
+          Serial.print("isRedPressed: "); 
           Serial.println(isButtonPressed(modredbuttonid)); 
-          Serial.print("isGreenPressed"); 
+          Serial.print("isGreenPressed: "); 
           Serial.println(isButtonPressed(modgreenbuttonid)); 
 
           switch(currentscenario)
@@ -119,7 +132,8 @@ void loop()
               {
                 Serial.println("SETUP_ROUNDS-LONGPRESS"); 
                 changeScenario(SETUP_TIME);
-                buzz(250);
+                buzz(SHORTDELAY, NOTE_F7, true);
+                buzz(SHORTDELAY, NOTE_G7);
               }
             }
             break;
@@ -130,18 +144,30 @@ void loop()
               if(isModeratorButton(buttonid) && isButtonPressed(modgreenbuttonid) && isButtonPressed(modredbuttonid))
               {
                 changeScenario(PLAYERREGISTER);
-                buzz(250);
+                buzz(SHORTDELAY, NOTE_F7, true);
+                buzz(SHORTDELAY, NOTE_G7);
               }
             }
             break;   
-                      
+            
             case PLAYERREGISTER:
             {
               Serial.println("PLAYERREGISTER-LONGPRESS"); 
               if(isModeratorButton(buttonid) && isButtonPressed(modgreenbuttonid) && isButtonPressed(modredbuttonid))
               {
-                changeScenario(WAITBUZZ);
-                buzz(250);
+                if(getPlayerRegesteredCount() > 0)
+                {
+                  changeScenario(WAITBUZZ);
+                  
+                  buzz(SHORTDELAY, NOTE_F7, true);
+                  buzz(SHORTDELAY, NOTE_G7); 
+                }
+                else
+                {
+                  buzz(SHORTDELAY, NOTE_E3, true);
+                  buzz(SHORTDELAY, NOTE_NONE);
+                  buzz(SHORTDELAY, NOTE_E3);
+                }
               }
             }
             break;
@@ -152,7 +178,8 @@ void loop()
               if(isModeratorButton(buttonid) && isButtonPressed(modgreenbuttonid) && isButtonPressed(modredbuttonid))
               {
                 changeScenario(CHANGESETUPREQUEST);
-                buzz(250);
+                buzz(SHORTDELAY, NOTE_F7, true);
+                buzz(SHORTDELAY, NOTE_G7);
               }
             }
             break;
@@ -174,14 +201,20 @@ void loop()
               if(modgreenbuttonid == buttonid)
               {
                 maxrounds++;
-                buzz(100);
+                buzz(SHORTDELAY, NOTE_B6, true);
               }
               else if(modredbuttonid == buttonid)
               {
                 if(maxrounds > 1)
                 {
                   maxrounds--;
-                  buzz(100);
+                  buzz(SHORTDELAY, NOTE_A6, true);
+                }
+                else
+                {
+                  buzz(SHORTDELAY, NOTE_E3, true);
+                  buzz(SHORTDELAY, NOTE_NONE);
+                  buzz(SHORTDELAY, NOTE_E3);
                 }
               }
               updateLCDContent();      
@@ -197,14 +230,20 @@ void loop()
               if(modgreenbuttonid == buttonid)
               {
                 maxanswertime += 1000;
-                buzz(100);
+                buzz(SHORTDELAY, NOTE_B6, true);
               }
               else if(modredbuttonid == buttonid)
               {
                 if(maxanswertime - 1000 >= 1000)
                 {
                   maxanswertime -= 1000;
-                  buzz(100);
+                  buzz(SHORTDELAY, NOTE_A6, true);
+                }
+                else
+                {
+                  buzz(SHORTDELAY, NOTE_E3, true);
+                  buzz(SHORTDELAY, NOTE_NONE);
+                  buzz(SHORTDELAY, NOTE_E3);
                 }
               }
               updateLCDContent();      
@@ -222,8 +261,10 @@ void loop()
               {
                 updatePixel(playerbuttons[playerbuttonid][1], playerbuttons[playerbuttonid][2], true);
                 playerbuttons[playerbuttonid][3] = 1;
-                buzz(250);
                 updateLCDContent();
+
+                buzz(SHORTDELAY, NOTE_F7, true);
+                buzz(SHORTDELAY, NOTE_G7);
               }
             }
           }
@@ -239,10 +280,11 @@ void loop()
               {
                 clearPixels(true);
                 updatePixel(playerbuttons[playerid][1], playerbuttons[playerid][2], true);
-                buzz(1000);
                 selectedplayerid = playerid;
                 playeranswertimestamp = millis() + maxanswertime;
                 changeScenario(PLAYERBUZZED);
+
+                buzz(ETERNITYDELAY, NOTE_G7, true);
               }
             }
           }
@@ -260,7 +302,11 @@ void loop()
               
               if(currentround >= maxrounds)
               {
-                 changeScenario(END);
+                changeScenario(END);
+
+                buzz(NORMALDELAY, NOTE_G7, true);
+                buzz(NORMALDELAY, NOTE_D7);
+                buzz(NORMALDELAY, NOTE_F7);
               }
               else
               {
@@ -286,10 +332,14 @@ void loop()
               if(modgreenbuttonid == buttonid)
               {
                 changeScenario(SETUP_ROUNDS);
+
+                buzz(SHORTDELAY, NOTE_B6, true);
               }
               else if(modredbuttonid == buttonid)
               {
                 changeScenario(PLAYERREGISTER);
+
+                buzz(SHORTDELAY, NOTE_B6, true);
               }      
             }
           }
@@ -315,6 +365,10 @@ void loop()
         if(currentround >= maxrounds)
         {
            changeScenario(END);
+
+           buzz(NORMALDELAY, NOTE_G7, true);
+           buzz(NORMALDELAY, NOTE_D7);
+           buzz(NORMALDELAY, NOTE_F7);
         }
         else
         {
@@ -333,12 +387,11 @@ void loop()
   tick();
 }
 
-void changeScenario(int newscenarioid)
+void changeScenario(scenarios newscenarioid)
 {
   currentscenario = newscenarioid;
   updateLCDContent();
 }
-
 
 void updateLCDContent()
 {
@@ -376,15 +429,7 @@ void updateLCDContent()
     {
       lcd.print("REGESTRIERE:");
       lcd.setCursor(0, 1);
-      byte playercount = 0;
-      for(int i = 0; i < playerbuttonamount; i++)
-      {
-        if(isPlayerButtonRegistered(i))
-        {
-          playercount++;
-        }
-      }
-      lcd.print(playercount);
+      lcd.print(getPlayerRegesteredCount());
     }
     break;
     
@@ -426,7 +471,7 @@ void clearCache()
   selectedplayerid = -1;
   playeranswertimestamp = -1; 
   currentround = 1; 
-  for(int i = 0; i < playerbuttonamount; i++)
+  for(int i = 0; i < PLAYERBUTTONAMOUNT; i++)
   {
     playerbuttons[i][3] = -1;
     playerbuttons[i][4] = 0;
@@ -454,9 +499,22 @@ boolean isPlayerButton(int buttonid)
   return getPlayerButtonId(buttonid) >= 0;
 }
 
+byte getPlayerRegesteredCount()
+{
+  byte playercount = 0;
+  for(int i = 0; i < PLAYERBUTTONAMOUNT; i++)
+  {
+    if(isPlayerButtonRegistered(i))
+    {
+      playercount++;
+    }
+  }
+  return playercount;
+}
+
 int getPlayerButtonId(int buttonid)
 {
-  for(int i = 0; i < playerbuttonamount; i++)
+  for(int i = 0; i < PLAYERBUTTONAMOUNT; i++)
   {
     if(playerbuttons[i][0] == buttonid)
     {

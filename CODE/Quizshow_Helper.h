@@ -8,7 +8,6 @@
 
 #define CONF_BUZZPIN              4    // Buzzer Pin 4
 #define CONF_BUZZDEFAULTFREQ      2000 // Sendet einen 2KHz Signal
-#define CONF_BUZZDEFAULTDURATION  100  // Sendet einen Signal für 100ms
 #define CONF_BUZZCACHEMAX         20   // Wie viele Buzz anweisungen können gleichzeitig gespeichert werden 
 
 #define CONF_RGBPIN               2    // RGB Datenleitung Pin
@@ -27,9 +26,12 @@
 void inithelperlib();
 void tick();
 
+void clearBuzzCache();
 void buzz(long duration);
+void buzz(long duration, boolean clearcache);
+void buzz(long duration, long frequenz);
+void buzz(long duration, long frequenz, boolean clearcache);
 void updateBuzz();
-boolean isBuzzing();
 
 String getColorNameById(int colorid);
 void loadPixelsFromCache();
