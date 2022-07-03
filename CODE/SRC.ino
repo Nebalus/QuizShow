@@ -1,4 +1,5 @@
-//Made By Aiden Nygaard
+//Code made By Aiden Nygaard
+
 #include "Quizshow_Helper.h" // Importiert die integerte libary
 #include "pezo_pitches.h" // Importiert die integerte libary
 
@@ -10,47 +11,56 @@ LiquidCrystal_I2C lcd(0x27, 16, 2);
 
 //############################################################
 
-#define BUTTONAMOUNT   6 // Setzt die Knopf anzahl zu 6
+const long SHORTDELAY = 100l;
+const long NORMALDELAY = 250l;
+const long LONGDELAY = 500l;
+const long ETERNITYDELAY = 1000l;
 
-//INDEX: {ButtonPin, Pressduration, Lastdcheckupdate}
-long buttonpins[BUTTONAMOUNT][3] = { 
-  {12, 0, 0},  //  ID: 0
-  {11, 0, 0},  //  ID: 1
-  {10, 0, 0},  //  ID: 2
-  {9, 0, 0},   //  ID: 3
-  {8, 0, 0},   //  ID: 4
-  {7, 0, 0}    //  ID: 5
-};
+#define BUTTONAMOUNT         6    // Setzt die Knopf anzahl zu 6
+#define PLAYERBUTTONAMOUNT   4    // Setzt die Spieler Knopf anzahl zu 4
 
-#define PLAYERBUTTONAMOUNT   4
-
-//INDEX: {buttonpin arrayid, RGBLedid, ColorId, isRequested, Points}
-int playerbuttons[PLAYERBUTTONAMOUNT][5] = 
-{
-  {0, 0, 7, -1, 0},
-  {1, 1, 8, -1, 0},
-  {2, 2, 4, -1, 0},
-  {3, 3, 6, -1, 0}
-};
-
-const int modgreenbuttonid = 4;
-const int modredbuttonid = 5;
+#define MODGREENBUTTONID     5    // Setzt denn Grünen Moderator Knopfid zu 5
+#define MODREDBUTTONID       4    // Setzt denn Roten Moderator Knopfid zu 5
 
 //############################################################
 
-enum scenarios {
+//INDEX: {ButtonPin, PressTimeStamp, Lastdcheckupdate}
+long buttons[BUTTONAMOUNT][3] = 
+{ 
+  {12, 0, 0},  // Button ID: 0
+  {11, 0, 0},  // Button ID: 1
+  {10, 0, 0},  // Button ID: 2
+  {9, 0, 0},   // Button ID: 3
+  {8, 0, 0},   // Button ID: 4
+  {7, 0, 0}    // Button ID: 5
+};
+
+//INDEX: {buttonpin arrayid, RGBLedid, ColorId, isRegestered, Points}
+int players[PLAYERBUTTONAMOUNT][5] = 
+{
+  {0, 0, 7, -1, 0}, // Player ID: 0
+  {1, 1, 8, -1, 0}, // Player ID: 1
+  {2, 2, 5, -1, 0}, // Player ID: 2
+  {3, 3, 6, -1, 0}  // Player ID: 3
+};
+
+//############################################################
+
+//Speichert alle verschidende Zustände die auftreten werden
+enum states 
+{
     _UNKNOWN_ = -1,
     BOOT = 0,
-    SETUP_ROUNDS = 1, 
-    SETUP_TIME = 2,
+    SETUPROUNDS = 1, 
+    SETUPTIME = 2,
     PLAYERREGISTER = 3,
     WAITBUZZ = 4,
     PLAYERBUZZED = 5,
-    END = 6,
+    GAMEEND = 6,
     CHANGESETUPREQUEST = 7
 };
 
-scenarios currentscenario = PLAYERREGISTER;
+states currentstate = _UNKNOWN_;
 
 int maxrounds = 10;
 long maxanswertime = 3000; //In Millis
@@ -61,14 +71,6 @@ int currentround = 1;
 
 //############################################################
 
-const long SHORTDELAY = 100l;
-const long NORMALDELAY = 250l;
-const long LONGDELAY = 500l;
-const long ETERNITYDELAY = 1000l;
-
-//############################################################
-
-
 void setup()
 {
   Serial.begin(57600);
@@ -77,12 +79,12 @@ void setup()
 
   lcd.init();
   lcd.backlight();
-  changeScenario(BOOT);
+  changeState(BOOT);
   
   //Inizialisiert die Button Pins
   for (int i = 0; i < BUTTONAMOUNT; i++)
   {
-    pinMode(buttonpins[i][0], INPUT);
+    pinMode(buttons[i][0], INPUT_PULLUP);
   }
 
   //Testet ob alle RGB LEDS leuchten
@@ -96,68 +98,71 @@ void setup()
   buzz(SHORTDELAY, NOTE_D7);
   buzz(SHORTDELAY, NOTE_G7);
   clearPixels(true);
-  changeScenario(SETUP_ROUNDS);
+  changeState(SETUPROUNDS);
 }
 
 void loop() 
 {
+  boolean islongpressedallreadychecked = false;
+  
   for (int buttonid = 0; buttonid < BUTTONAMOUNT; buttonid++)
   {
-    if (isButtonPressed(buttonid))
+    if (digitalRead(buttons[buttonid][0]) == LOW)
     {
-      const long lastupdated = buttonpins[buttonid][2] - buttonpins[buttonid][1];
+      const long lastupdated = buttons[buttonid][2] - buttons[buttonid][1];
       
       if(lastupdated > 0)
       {
-        const long timepressed = millis() - buttonpins[buttonid][1];
-       
-        if(lastupdated <= 500 && timepressed >= 500)
+        const long timepressed = millis() - buttons[buttonid][1];
+         
+        if(lastupdated <= 1000 && timepressed >= 1000)
         {
-          //Wird ein mal ausgeführt wenn der knopf 0.5 sekunden gedrückt wurde
+          //Wird ein mal ausgeführt wenn der knopf 1 sekunden gedrückt wurde
 
           Serial.print("Buttonid: "); 
           Serial.println(buttonid); 
           Serial.print("isMod: "); 
           Serial.println(isModeratorButton(buttonid)); 
           Serial.print("isRedPressed: "); 
-          Serial.println(isButtonPressed(modredbuttonid)); 
+          Serial.println(isButtonPressedForACertinTime(MODREDBUTTONID, 1000)); 
           Serial.print("isGreenPressed: "); 
-          Serial.println(isButtonPressed(modgreenbuttonid)); 
+          Serial.println(isButtonPressedForACertinTime(MODGREENBUTTONID, 1000)); 
 
-          switch(currentscenario)
-          { 
-            case SETUP_ROUNDS:
-            {
-              if(isModeratorButton(buttonid) && isButtonPressed(modgreenbuttonid) && isButtonPressed(modredbuttonid))
+          Serial.print("RED TIME: "); 
+          Serial.println(millis() - buttons[MODREDBUTTONID][1]); 
+          Serial.print("GREEN TIME: "); 
+          Serial.println(millis() - buttons[MODGREENBUTTONID][1]); 
+
+          if(isModeratorButton(buttonid) && !islongpressedallreadychecked && isButtonPressedForACertinTime(MODGREENBUTTONID, 1000) && isButtonPressedForACertinTime(MODREDBUTTONID,1000))
+          {    
+            islongpressedallreadychecked = true;
+            
+            switch(currentstate)
+            { 
+              case SETUPROUNDS:
               {
                 Serial.println("SETUP_ROUNDS-LONGPRESS"); 
-                changeScenario(SETUP_TIME);
+                changeState(SETUPTIME);
                 buzz(SHORTDELAY, NOTE_F7, true);
                 buzz(SHORTDELAY, NOTE_G7);
               }
-            }
-            break;
-
-            case SETUP_TIME:
-            {
-              Serial.println("SETUP_TIME-LONGPRESS"); 
-              if(isModeratorButton(buttonid) && isButtonPressed(modgreenbuttonid) && isButtonPressed(modredbuttonid))
+              break;
+  
+              case SETUPTIME:
               {
-                changeScenario(PLAYERREGISTER);
+                Serial.println("SETUP_TIME-LONGPRESS"); 
+                changeState(PLAYERREGISTER);
                 buzz(SHORTDELAY, NOTE_F7, true);
                 buzz(SHORTDELAY, NOTE_G7);
               }
-            }
-            break;   
-            
-            case PLAYERREGISTER:
-            {
-              Serial.println("PLAYERREGISTER-LONGPRESS"); 
-              if(isModeratorButton(buttonid) && isButtonPressed(modgreenbuttonid) && isButtonPressed(modredbuttonid))
+              break;   
+              
+              case PLAYERREGISTER:
               {
+                Serial.println("PLAYERREGISTER-LONGPRESS");   
                 if(getPlayerRegesteredCount() > 0)
                 {
-                  changeScenario(WAITBUZZ);
+                  changeState(WAITBUZZ);
                   
                   buzz(SHORTDELAY, NOTE_F7, true);
                   buzz(SHORTDELAY, NOTE_G7); 
@@ -167,22 +172,19 @@ void loop()
                   buzz(SHORTDELAY, NOTE_E3, true);
                   buzz(SHORTDELAY, NOTE_NONE);
                   buzz(SHORTDELAY, NOTE_E3);
-                }
+                }            
               }
-            }
-            break;
-
-            case END:
-            {
-              Serial.println("END-LONGPRESS"); 
-              if(isModeratorButton(buttonid) && isButtonPressed(modgreenbuttonid) && isButtonPressed(modredbuttonid))
+              break;
+  
+              case GAMEEND:
               {
-                changeScenario(CHANGESETUPREQUEST);
+                Serial.println("END-LONGPRESS");           
+                changeState(CHANGESETUPREQUEST);
                 buzz(SHORTDELAY, NOTE_F7, true);
                 buzz(SHORTDELAY, NOTE_G7);
               }
+              break;
             }
-            break;
           }
         }
         
@@ -191,19 +193,19 @@ void loop()
       else
       {
         //Wird ein mal ausgeführt wenn der knopf dedrückt wurde
-        switch(currentscenario)
+        switch(currentstate)
         {
-          case SETUP_ROUNDS:    
+          case SETUPROUNDS:    
           {
             Serial.println("SETUP_ROUNDS-PRESS"); 
             if(isModeratorButton(buttonid))
             {
-              if(modgreenbuttonid == buttonid)
+              if(MODGREENBUTTONID == buttonid)
               {
                 maxrounds++;
                 buzz(SHORTDELAY, NOTE_B6, true);
               }
-              else if(modredbuttonid == buttonid)
+              else if(MODREDBUTTONID == buttonid)
               {
                 if(maxrounds > 1)
                 {
@@ -222,17 +224,17 @@ void loop()
           }
           break;
             
-          case SETUP_TIME:
+          case SETUPTIME:
           {
             Serial.println("SETUP_TIME-PRESS"); 
             if(isModeratorButton(buttonid))
             {
-              if(modgreenbuttonid == buttonid)
+              if(MODGREENBUTTONID == buttonid)
               {
                 maxanswertime += 1000;
                 buzz(SHORTDELAY, NOTE_B6, true);
               }
-              else if(modredbuttonid == buttonid)
+              else if(MODREDBUTTONID == buttonid)
               {
                 if(maxanswertime - 1000 >= 1000)
                 {
@@ -256,11 +258,11 @@ void loop()
             Serial.println("PLAYERREGISTER-PRESS"); 
             if(isPlayerButton(buttonid))
             {
-              const int playerbuttonid = getPlayerButtonId(buttonid);
-              if(!isPlayerButtonRegistered(playerbuttonid))
+              const int playerid = getPlayerIdFromButtonId(buttonid);
+              if(!isPlayerIdRegistered(playerid))
               {
-                updatePixel(playerbuttons[playerbuttonid][1], playerbuttons[playerbuttonid][2], true);
-                playerbuttons[playerbuttonid][3] = 1;
+                updatePixel(players[playerid][1], players[playerid][2], true);
+                players[playerid][3] = 1;
                 updateLCDContent();
 
                 buzz(SHORTDELAY, NOTE_F7, true);
@@ -275,14 +277,14 @@ void loop()
             Serial.println("WAITBUZZ-PRESS"); 
             if(isPlayerButton(buttonid))
             {
-              const int playerid = getPlayerButtonId(buttonid);
-              if(isPlayerButtonRegistered(playerid))
+              const int playerid = getPlayerIdFromButtonId(buttonid);
+              if(isPlayerIdRegistered(playerid))
               {
                 clearPixels(true);
-                updatePixel(playerbuttons[playerid][1], playerbuttons[playerid][2], true);
+                updatePixel(players[playerid][1], players[playerid][2], true);
                 selectedplayerid = playerid;
                 playeranswertimestamp = millis() + maxanswertime;
-                changeScenario(PLAYERBUZZED);
+                changeState(PLAYERBUZZED);
 
                 buzz(ETERNITYDELAY, NOTE_G7, true);
               }
@@ -295,14 +297,23 @@ void loop()
             Serial.println("PLAYERBUZZED-PRESS"); 
             if(isModeratorButton(buttonid))
             {
-              if(modgreenbuttonid == buttonid)
+              clearPixels();
+              if(MODGREENBUTTONID == buttonid)
               {
-                playerbuttons[selectedplayerid][4] = playerbuttons[selectedplayerid][4] + 1;
+                players[selectedplayerid][4] = players[selectedplayerid][4] + 1;
+                buzz(SHORTDELAY, NOTE_F7, true);
+                buzz(SHORTDELAY, NOTE_G7);
+              }
+              else if(MODREDBUTTONID == buttonid)
+              {
+                players[selectedplayerid][4] = players[selectedplayerid][4] + 1;
+                buzz(SHORTDELAY, NOTE_F7, true);
+                buzz(NORMALDELAY, NOTE_G4);
               }
               
               if(currentround >= maxrounds)
               {
-                changeScenario(END);
+                changeState(GAMEEND);
 
                 buzz(NORMALDELAY, NOTE_G7, true);
                 buzz(NORMALDELAY, NOTE_D7);
@@ -311,33 +322,45 @@ void loop()
               else
               {
                 currentround++;
-                changeScenario(WAITBUZZ);
+                changeState(WAITBUZZ);
               }
             }
           }
           break;
              
-          case END:
+          case GAMEEND:
           {
             Serial.println("END-PRESS");
+            if(isPlayerButton(buttonid))
+            {
+              const int playerid = getPlayerIdFromButtonId(buttonid);
+              if(selectedplayerid != playerid)
+              {
+                selectedplayerid = playerid;
+
+                buzz(SHORTDELAY, NOTE_B6, true);
+                updateLCDContent(); 
+              }
+            }
           }
           break;
 
           case CHANGESETUPREQUEST:
           {
             Serial.println("CHANGESETUPREQUEST-PRESS");
-            clearCache();
             if(isModeratorButton(buttonid))
             {
-              if(modgreenbuttonid == buttonid)
+              clearCache();
+              clearPixels();
+              if(MODGREENBUTTONID == buttonid)
               {
-                changeScenario(SETUP_ROUNDS);
+                changeState(SETUPROUNDS);
 
                 buzz(SHORTDELAY, NOTE_B6, true);
               }
-              else if(modredbuttonid == buttonid)
+              else if(MODREDBUTTONID == buttonid)
               {
-                changeScenario(PLAYERREGISTER);
+                changeState(PLAYERREGISTER);
 
                 buzz(SHORTDELAY, NOTE_B6, true);
               }      
@@ -349,22 +372,25 @@ void loop()
     }
     else
     {
-      buttonpins[buttonid][1] = millis();
+      buttons[buttonid][1] = millis();
     }
-    buttonpins[buttonid][2] = millis();
+    buttons[buttonid][2] = millis();
   }
 
   //Wird Immer ausgefuhrt
-  switch(currentscenario)
+  switch(currentstate)
   {
     case PLAYERBUZZED:
     {
       const long remainingtime = playeranswertimestamp - millis();
       if(remainingtime < 0)
       {
+        buzz(SHORTDELAY, NOTE_F7, true);
+        buzz(NORMALDELAY, NOTE_G4);
+        
         if(currentround >= maxrounds)
         {
-           changeScenario(END);
+           changeState(GAMEEND);
 
            buzz(NORMALDELAY, NOTE_G7, true);
            buzz(NORMALDELAY, NOTE_D7);
@@ -373,7 +399,7 @@ void loop()
         else
         {
           currentround++;
-          changeScenario(WAITBUZZ);
+          changeState(WAITBUZZ);
         }
       }
       else
@@ -387,9 +413,9 @@ void loop()
   tick();
 }
 
-void changeScenario(scenarios newscenarioid)
+void changeState(states newstateid)
 {
-  currentscenario = newscenarioid;
+  currentstate = newstateid;
   updateLCDContent();
 }
 
@@ -397,7 +423,7 @@ void updateLCDContent()
 {
   lcd.clear();
   
-  switch(currentscenario)
+  switch(currentstate)
   {
     case BOOT:
     {
@@ -407,7 +433,7 @@ void updateLCDContent()
     }
     break;
     
-    case SETUP_ROUNDS:
+    case SETUPROUNDS:
     {
       lcd.print("SETUP-RUNDEN:");
       lcd.setCursor(0, 1);
@@ -415,13 +441,12 @@ void updateLCDContent()
     }
     break;
       
-    case SETUP_TIME:
+    case SETUPTIME:
     {
       lcd.print("SETUP-ZEIT:");
       lcd.setCursor(0, 1);
       lcd.print(maxanswertime / 1000);
-      lcd.setCursor(2, 1);
-      lcd.print("- SEK");
+      lcd.print(" - SEK");
     }
     break;
 
@@ -437,7 +462,6 @@ void updateLCDContent()
     {
       Serial.println("WAITBUZZ");
       lcd.print("Runde:");
-      lcd.setCursor(6, 0);
       lcd.print(currentround);
       lcd.setCursor(0, 1);
       lcd.print("WAIT 4 BUZZ");
@@ -446,17 +470,72 @@ void updateLCDContent()
 
     case PLAYERBUZZED:
     {
-      lcd.print(getColorNameById(playerbuttons[selectedplayerid][2]));
+      lcd.print(getColorNameById(players[selectedplayerid][2]));
       lcd.setCursor(0, 1);
       lcd.print((playeranswertimestamp - millis()) / 1000);
-      lcd.setCursor(2, 1);
-      lcd.print("- SEK");
+      lcd.print(" - SEK");
     }
     break;
 
+    case GAMEEND:
+    {
+      int currentmaxpoints = -1;
+      int winnerlist[PLAYERBUTTONAMOUNT];
+      
+      for(int i = 0; i < PLAYERBUTTONAMOUNT; i++)
+      {
+        if(isPlayerIdRegistered(i))
+        {
+          const int playerpoints = players[i][4];
+          if(playerpoints > currentmaxpoints)
+          {
+            for(int winneri = 0; winneri < PLAYERBUTTONAMOUNT; winneri++)
+            {
+              winnerlist[winneri] = -1;
+            }
+            winnerlist[0] = i;
+            currentmaxpoints = playerpoints;
+          }
+          else if(playerpoints == currentmaxpoints)
+          {
+            for(int winneri = 0; winneri < PLAYERBUTTONAMOUNT; winneri++)
+            {
+              if(winnerlist[winneri] == -1)
+              {
+                winnerlist[winneri] = i;
+                break;
+              }
+            }
+          }
+        }
+      }
+
+      lcd.print("WIN:");
+
+      for(int winneri = 0; winneri < PLAYERBUTTONAMOUNT; winneri++)
+      {
+        if(winnerlist[winneri] != -1)
+        {
+          lcd.print(getColorNameById(players[winnerlist[winneri]][2]).substring(0, 3));
+          lcd.print(" ");
+        }
+        else
+        {
+          break;
+        }
+      }
+  
+      lcd.setCursor(0, 1);
+      lcd.print(getColorNameById(players[selectedplayerid][2]));
+      lcd.print(" ");
+      lcd.print(players[selectedplayerid][4]);
+      lcd.print("P");
+    }
+    break;
+    
     case CHANGESETUPREQUEST:
     {
-      lcd.print("Conf Aendern?");
+      lcd.print("Config Aendern?");
       lcd.setCursor(3, 1);
       lcd.print("JA");
       lcd.setCursor(9, 1);
@@ -473,38 +552,68 @@ void clearCache()
   currentround = 1; 
   for(int i = 0; i < PLAYERBUTTONAMOUNT; i++)
   {
-    playerbuttons[i][3] = -1;
-    playerbuttons[i][4] = 0;
+    players[i][3] = -1;
+    players[i][4] = 0;
   }
 }
 
-boolean isButtonPressed(int buttonid)
+boolean isButtonPressedForACertinTime(int buttonid, long timestamp)
 {
-  const int buttonpin = buttonpins[buttonid][0];
-  return digitalRead(buttonpin) == HIGH;
+  return millis() - buttons[buttonid][1] >= timestamp;
 }
 
 boolean isModeratorButton(int buttonid)
 {
-  return buttonid == modgreenbuttonid || buttonid == modredbuttonid;
+  return buttonid == MODGREENBUTTONID || buttonid == MODREDBUTTONID;
 }
 
-boolean isPlayerButtonRegistered(int playerbutton)
+/*###################################################
+ * @description Diese Methode überprüft ob der 
+ *              "PlayerId" regestriert wurde 
+ *              (Aktiviert & Freigeschaltet)
+ *              und wenn ja gebt er denn Wert "true"
+ *              züruck
+ * 
+ * @param INTEGER playerid
+ * 
+ * @return BOOLEAN isplayeridregestered
+ *###################################################
+*/
+boolean isPlayerIdRegistered(int playerid)
 {
-  return playerbuttons[playerbutton][3] > 0;
+  return players[playerid][3] > 0;
 }
 
+/*###################################################
+ * @description Diese Methode überprüft ob der 
+ *              "Buttonid" einen Spieler Button ist
+ *              und wenn ja gebt er denn Wert "true"
+ *              züruck
+ * 
+ * @param INTEGER buttonid
+ * 
+ * @return BOOLEAN isaplayerbutton
+ *###################################################
+*/
 boolean isPlayerButton(int buttonid)
 {
-  return getPlayerButtonId(buttonid) >= 0;
+  return getPlayerIdFromButtonId(buttonid) >= 0;
 }
 
-byte getPlayerRegesteredCount()
+/*###################################################
+ * @description Diese Methode sucht und zählt wie 
+ *              viele der SpielerIds sich regestriert
+ *              hat
+ * 
+ * @return INTEGER playerregesteredamount
+ *###################################################
+ */
+int getPlayerRegesteredCount()
 {
-  byte playercount = 0;
+  int playercount = 0;
   for(int i = 0; i < PLAYERBUTTONAMOUNT; i++)
   {
-    if(isPlayerButtonRegistered(i))
+    if(isPlayerIdRegistered(i))
     {
       playercount++;
     }
@@ -512,14 +621,39 @@ byte getPlayerRegesteredCount()
   return playercount;
 }
 
-int getPlayerButtonId(int buttonid)
+/*###################################################
+ * @description Diese Methode Sucht & Überprüft ob
+ *              der übergebene wert "buttonid" einen 
+ *              "playerid" ist und wenn es exestiert 
+ *              gebt er die "playerid" züruck
+ * 
+ * @param INTEGER buttonid
+ * 
+ * @return INTEGER playerid
+ *###################################################
+ */
+int getPlayerIdFromButtonId(int buttonid)
 {
   for(int i = 0; i < PLAYERBUTTONAMOUNT; i++)
   {
-    if(playerbuttons[i][0] == buttonid)
+    if(players[i][0] == buttonid)
     {
       return i;
     }
   }
   return -1;
+}
+
+void updatePoints()
+{
+  lcd.clear();
+  for(int playerid = 0; playerid < pp; i++)
+  {
+    const int points = playerpoints[playerid]; 
+    lcd.print("P");
+    lcd.print(winnerlist[winneri][0] + 1);
+    lcd.print("-");
+    lcd.print(winnerlist[winneri][1]);
+    lcd.print(" ");
+  }
 }

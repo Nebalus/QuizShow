@@ -1,4 +1,5 @@
-//Made By Aiden Nygaard
+//Code made By Aiden Nygaard
+
 #include "Quizshow_Helper.h"
 
 //##############################################################################
@@ -20,10 +21,10 @@ long buzzcache[CONF_BUZZCACHEMAX][2] = {};
 //Ist ein Zwischen Spiecher womit man die ColorIDs für denn Jeweilige RGB-PIXEL Speichern kann
 long ledcache[CONF_NUMPIXELS] = {};
 
-const int coloramount = 9;
+const int COLORAMOUNT = 10;
 //Hier werden alle möglichen verwendbaren Farbschemas in einem Array gespeichert
 //INDEX = {RED, GREEN, BLUE}
-const int colorpallet[coloramount][3] = 
+const int colorpallet[COLORAMOUNT][3] = 
 {
   {0, 0, 0},    //CLEAR   || ID = 0
   {0, 25, 0},   //GREEN   || ID = 1
@@ -33,10 +34,11 @@ const int colorpallet[coloramount][3] =
   {0, 0, 25},   //BLUE    || ID = 5
   {13, 0, 25},  //PURPULE || ID = 6
   {25, 13, 0},  //ORANGE  || ID = 7
-  {0, 13, 13}   //CYAN    || ID = 8
+  {0, 13, 13},  //CYAN    || ID = 8
+  {22, 11, 15}  //PINK    || ID = 9
 };
 
-const String colorname[coloramount] = 
+const String colorname[COLORAMOUNT] = 
 {
   "CLEAR",   //ID = 0
   "GREEN",   //ID = 1
@@ -46,7 +48,8 @@ const String colorname[coloramount] =
   "BLUE",    //ID = 5
   "PURPULE", //ID = 6
   "ORANGE",  //ID = 7
-  "CYAN"     //ID = 8
+  "CYAN",    //ID = 8
+  "PINK"     //ID = 9
 };
 
 //##############################################################################
@@ -150,7 +153,7 @@ void updateBuzz()
   const long buzztime = buzzcache[0][0];
   if (buzztime > -1)
   {
-    if(buzztime > millis())
+    if(buzztime >= millis())
     {
       const long buzzfreq = buzzcache[0][1];
       tone(CONF_BUZZPIN, buzzfreq);

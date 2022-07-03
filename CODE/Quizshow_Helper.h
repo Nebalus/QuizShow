@@ -1,4 +1,5 @@
-//Made By Aiden Nygaard
+//Code made By Aiden Nygaard
+
 #ifndef QUIZSHOW_HELPER_H
 #define QUIZSHOW_HELPER_H
 
