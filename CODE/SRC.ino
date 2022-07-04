@@ -103,7 +103,7 @@ void setup()
 
 void loop() 
 {
-  boolean islongpressedallreadychecked = false;
+  boolean islongpressedallreadychecked = false; // Initialisiert 
   
   for (int buttonid = 0; buttonid < BUTTONAMOUNT; buttonid++)
   {
@@ -115,7 +115,7 @@ void loop()
       {
         const long timepressed = millis() - buttons[buttonid][1];
          
-        if(lastupdated <= 1000 && timepressed >= 1000)
+        if(lastupdated <= 500 && timepressed >= 500)
         {
           //Wird ein mal ausgeführt wenn der knopf 1 sekunden gedrückt wurde
 
@@ -124,9 +124,9 @@ void loop()
           Serial.print("isMod: "); 
           Serial.println(isModeratorButton(buttonid)); 
           Serial.print("isRedPressed: "); 
-          Serial.println(isButtonPressedForACertinTime(MODREDBUTTONID, 1000)); 
+          Serial.println(isButtonPressedForACertinTime(MODREDBUTTONID, 500)); 
           Serial.print("isGreenPressed: "); 
-          Serial.println(isButtonPressedForACertinTime(MODGREENBUTTONID, 1000)); 
+          Serial.println(isButtonPressedForACertinTime(MODGREENBUTTONID, 500)); 
 
           Serial.print("RED TIME: "); 
           Serial.println(millis() - buttons[MODREDBUTTONID][1]); 
@@ -306,7 +306,6 @@ void loop()
               }
               else if(MODREDBUTTONID == buttonid)
               {
-                players[selectedplayerid][4] = players[selectedplayerid][4] + 1;
                 buzz(SHORTDELAY, NOTE_F7, true);
                 buzz(NORMALDELAY, NOTE_G4);
               }
@@ -562,6 +561,15 @@ boolean isButtonPressedForACertinTime(int buttonid, long timestamp)
   return millis() - buttons[buttonid][1] >= timestamp;
 }
 
+/*###################################################
+ * @description Diese Methode überprüft ob der 
+ *              "ButtonId" einen Moderator Knopf ist
+ * 
+ * @param INTEGER buttonid
+ * 
+ * @return BOOLEAN ismoderatorbutton
+ *###################################################
+*/
 boolean isModeratorButton(int buttonid)
 {
   return buttonid == MODGREENBUTTONID || buttonid == MODREDBUTTONID;
@@ -642,18 +650,4 @@ int getPlayerIdFromButtonId(int buttonid)
     }
   }
   return -1;
-}
-
-void updatePoints()
-{
-  lcd.clear();
-  for(int playerid = 0; playerid < pp; i++)
-  {
-    const int points = playerpoints[playerid]; 
-    lcd.print("P");
-    lcd.print(winnerlist[winneri][0] + 1);
-    lcd.print("-");
-    lcd.print(winnerlist[winneri][1]);
-    lcd.print(" ");
-  }
 }
