@@ -24,6 +24,7 @@ const long ETERNITYDELAY = 1000l;
 
 //############################################################
 
+//Speichert alle an geschlossenen Knopf Pins
 //INDEX: {ButtonPin, PressTimeStamp, Lastdcheckupdate}
 long buttons[BUTTONAMOUNT][3] = 
 { 
@@ -35,6 +36,7 @@ long buttons[BUTTONAMOUNT][3] =
   {7, 0, 0}    // Button ID: 5
 };
 
+//Spiechert alle Spieler und ist unendlich erweiterbar... naja fast unendlich :P
 //INDEX: {buttonpin arrayid, RGBLedid, ColorId, isRegestered, Points}
 int players[PLAYERBUTTONAMOUNT][5] = 
 {
@@ -74,7 +76,8 @@ int currentround = 1;
 void setup()
 {
   Serial.begin(57600);
-  //Inizialisiert die Intgrierte Bibliotheke
+  
+  //Inizialisiert die Intgrierte Bibliothek
   inithelperlib();
 
   lcd.init();
@@ -97,13 +100,16 @@ void setup()
   buzz(SHORTDELAY, NOTE_F7, true);
   buzz(SHORTDELAY, NOTE_D7);
   buzz(SHORTDELAY, NOTE_G7);
-  clearPixels(true);
+  
+  clearPixels();
+  
   changeState(SETUPROUNDS);
 }
 
 void loop() 
 {
-  boolean islongpressedallreadychecked = false; // Initialisiert 
+  boolean islongpressedallreadychecked = false; // Beinhaltet denn Wert ob beide Mod knöpfe schon bei diesen check geprüft wurde
+                                                // NOTE: Wenn es weggelassen wird könnte bugs auftretten, z.b das zwei Zustände gleichzeitig überpruft wird
   
   for (int buttonid = 0; buttonid < BUTTONAMOUNT; buttonid++)
   {
@@ -117,7 +123,7 @@ void loop()
          
         if(lastupdated <= 500 && timepressed >= 500)
         {
-          //Wird ein mal ausgeführt wenn der knopf 1 sekunden gedrückt wurde
+          //Der folgende Quellcode wird ein mal ausgeführt wenn ein Knopf 0.5 sekunden gedrückt wurde
 
           Serial.print("Buttonid: "); 
           Serial.println(buttonid); 
@@ -133,7 +139,7 @@ void loop()
           Serial.print("GREEN TIME: "); 
           Serial.println(millis() - buttons[MODGREENBUTTONID][1]); 
 
-          if(isModeratorButton(buttonid) && !islongpressedallreadychecked && isButtonPressedForACertinTime(MODGREENBUTTONID, 1000) && isButtonPressedForACertinTime(MODREDBUTTONID,1000))
+          if(isModeratorButton(buttonid) && !islongpressedallreadychecked && isButtonPressedForACertinTime(MODGREENBUTTONID, 500) && isButtonPressedForACertinTime(MODREDBUTTONID, 500))
           {    
             islongpressedallreadychecked = true;
             
@@ -141,7 +147,7 @@ void loop()
             { 
               case SETUPROUNDS:
               {
-                Serial.println("SETUP_ROUNDS-LONGPRESS"); 
+                Serial.println("SETUPROUNDS-LONGPRESS"); 
                 changeState(SETUPTIME);
                 buzz(SHORTDELAY, NOTE_F7, true);
                 buzz(SHORTDELAY, NOTE_G7);
@@ -150,7 +156,7 @@ void loop()
   
               case SETUPTIME:
               {
-                Serial.println("SETUP_TIME-LONGPRESS"); 
+                Serial.println("SETUPTIME-LONGPRESS"); 
                 changeState(PLAYERREGISTER);
                 buzz(SHORTDELAY, NOTE_F7, true);
                 buzz(SHORTDELAY, NOTE_G7);
@@ -187,17 +193,19 @@ void loop()
             }
           }
         }
+        //Der folgende Quellcode wird immer ausgeführt wenn ein Knopf gedrückt wird
+
         
-        //Wird Immer ausgeführt wenn ein knopf gedrückt wird 
       }
       else
       {
-        //Wird ein mal ausgeführt wenn der knopf dedrückt wurde
+        //Der folgende Quellcode wird einmal ausgeführt wenn ein Knopf gedrückt wurde
+        
         switch(currentstate)
         {
           case SETUPROUNDS:    
           {
-            Serial.println("SETUP_ROUNDS-PRESS"); 
+            Serial.println("SETUPROUNDS-PRESS"); 
             if(isModeratorButton(buttonid))
             {
               if(MODGREENBUTTONID == buttonid)
@@ -226,7 +234,7 @@ void loop()
             
           case SETUPTIME:
           {
-            Serial.println("SETUP_TIME-PRESS"); 
+            Serial.println("SETUPTIME-PRESS"); 
             if(isModeratorButton(buttonid))
             {
               if(MODGREENBUTTONID == buttonid)
@@ -261,7 +269,7 @@ void loop()
               const int playerid = getPlayerIdFromButtonId(buttonid);
               if(!isPlayerIdRegistered(playerid))
               {
-                updatePixel(players[playerid][1], players[playerid][2], true);
+                updatePixel(players[playerid][1], players[playerid][2]);
                 players[playerid][3] = 1;
                 updateLCDContent();
 
@@ -280,10 +288,14 @@ void loop()
               const int playerid = getPlayerIdFromButtonId(buttonid);
               if(isPlayerIdRegistered(playerid))
               {
-                clearPixels(true);
-                updatePixel(players[playerid][1], players[playerid][2], true);
+                clearPixels();
+                
+                updatePixel(players[playerid][1], players[playerid][2]);
+                
                 selectedplayerid = playerid;
+                
                 playeranswertimestamp = millis() + maxanswertime;
+                
                 changeState(PLAYERBUZZED);
 
                 buzz(ETERNITYDELAY, NOTE_G7, true);
@@ -301,6 +313,7 @@ void loop()
               if(MODGREENBUTTONID == buttonid)
               {
                 players[selectedplayerid][4] = players[selectedplayerid][4] + 1;
+                
                 buzz(SHORTDELAY, NOTE_F7, true);
                 buzz(SHORTDELAY, NOTE_G7);
               }
@@ -414,8 +427,11 @@ void loop()
 
 void changeState(states newstateid)
 {
-  currentstate = newstateid;
-  updateLCDContent();
+  if(currentstate != newstateid)
+  {
+    currentstate = newstateid;
+    updateLCDContent(); 
+  }
 }
 
 void updateLCDContent()
@@ -480,7 +496,8 @@ void updateLCDContent()
     {
       int currentmaxpoints = -1;
       int winnerlist[PLAYERBUTTONAMOUNT];
-      
+
+      //Ist der algorythmus der auswertet (wer & wie viele) gewonnen hat
       for(int i = 0; i < PLAYERBUTTONAMOUNT; i++)
       {
         if(isPlayerIdRegistered(i))
@@ -544,6 +561,10 @@ void updateLCDContent()
   }
 }
 
+/*###################################################
+ * @description Löscht die Cache
+ *###################################################
+*/
 void clearCache()
 {
   selectedplayerid = -1;
@@ -556,14 +577,25 @@ void clearCache()
   }
 }
 
+/*###################################################
+ * @description Überprüft ob der Knopf mit der 
+ *              "buttonid" für eine bestimmte zeit 
+ *              gedrückt wurde
+ * 
+ * @param INTEGER buttonid
+ * @param LONG timestamp
+ * 
+ * @return BOOLEAN isbuttonpressedforacertintime
+ *###################################################
+*/
 boolean isButtonPressedForACertinTime(int buttonid, long timestamp)
 {
   return millis() - buttons[buttonid][1] >= timestamp;
 }
 
 /*###################################################
- * @description Diese Methode überprüft ob der 
- *              "ButtonId" einen Moderator Knopf ist
+ * @description Überprüft ob der "buttonid" einen 
+ *              Moderator Knopf ist
  * 
  * @param INTEGER buttonid
  * 
@@ -576,8 +608,8 @@ boolean isModeratorButton(int buttonid)
 }
 
 /*###################################################
- * @description Diese Methode überprüft ob der 
- *              "PlayerId" regestriert wurde 
+ * @description Überprüft ob der "playerid" 
+ *              regestriert wurde 
  *              (Aktiviert & Freigeschaltet)
  *              und wenn ja gebt er denn Wert "true"
  *              züruck
@@ -593,10 +625,9 @@ boolean isPlayerIdRegistered(int playerid)
 }
 
 /*###################################################
- * @description Diese Methode überprüft ob der 
- *              "Buttonid" einen Spieler Button ist
- *              und wenn ja gebt er denn Wert "true"
- *              züruck
+ * @description Überprüft ob der "buttonid" einen 
+ *              Spieler Button ist und wenn ja gebt 
+ *              er denn Wert "true" züruck
  * 
  * @param INTEGER buttonid
  * 
@@ -609,9 +640,8 @@ boolean isPlayerButton(int buttonid)
 }
 
 /*###################################################
- * @description Diese Methode sucht und zählt wie 
- *              viele der SpielerIds sich regestriert
- *              hat
+ * @description Sucht und zählt wie viele der 
+ *              SpielerIds sich regestriert hat
  * 
  * @return INTEGER playerregesteredamount
  *###################################################
@@ -630,10 +660,10 @@ int getPlayerRegesteredCount()
 }
 
 /*###################################################
- * @description Diese Methode Sucht & Überprüft ob
- *              der übergebene wert "buttonid" einen 
- *              "playerid" ist und wenn es exestiert 
- *              gebt er die "playerid" züruck
+ * @description Sucht & Überprüft ob der übergebene 
+ *              wert "buttonid" einen "playerid" ist# 
+ *              und wenn es exestiert gebt er die 
+ *              "playerid" züruck
  * 
  * @param INTEGER buttonid
  * 

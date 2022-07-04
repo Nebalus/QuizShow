@@ -18,9 +18,6 @@ long buzzcache[CONF_BUZZCACHEMAX][2] = {};
 //    RGB Variablen
 //#####################
 
-//Ist ein Zwischen Spiecher womit man die ColorIDs für denn Jeweilige RGB-PIXEL Speichern kann
-long ledcache[CONF_NUMPIXELS] = {};
-
 const int COLORAMOUNT = 10;
 //Hier werden alle möglichen verwendbaren Farbschemas in einem Array gespeichert
 //INDEX = {RED, GREEN, BLUE}
@@ -38,6 +35,7 @@ const int colorpallet[COLORAMOUNT][3] =
   {22, 11, 15}  //PINK    || ID = 9
 };
 
+//Hier werden die Farbschema Namen aufgelistet
 const String colorname[COLORAMOUNT] = 
 {
   "CLEAR",   //ID = 0
@@ -60,6 +58,7 @@ const String colorname[COLORAMOUNT] =
 
 boolean isinit = false;
 
+//Ini
 Adafruit_NeoPixel pixels(CONF_NUMPIXELS, CONF_RGBPIN, NEO_GRB + NEO_KHZ800);
 
 //Immer in der setup() methode inizialisieren
@@ -148,6 +147,7 @@ void buzz(long duration, long frequenz, boolean clearcache)
   }
 }
 
+//Updatet denn Pizo Speaker 
 void updateBuzz()
 {
   const long buzztime = buzzcache[0][0];
@@ -195,29 +195,16 @@ String getColorNameById(int colorid)
   return "UNKNOWNCOLOR";
 }
 
-void loadPixelsFromCache()
-{
-  for(int i = 0; i < CONF_NUMPIXELS; i++)
-  {
-    updatePixel(i, ledcache[i], false);
-  }
-}
-
 void updateAllPixels(int colorid)
 {
-  updateAllPixels(colorid, true);
-}
-
-void updateAllPixels(int colorid, boolean updatecache)
-{
   for(int i = 0; i < CONF_NUMPIXELS; i++)
   {
-    updatePixel(i, colorid, updatecache);
+    updatePixel(i, colorid);
   }
 }
 
 //Eine Funktion um vereinfacht die Farben von den RGB-LEDs ändern zu können
-void updatePixel(int pixelid, int colorid, boolean updatecache) 
+void updatePixel(int pixelid, int colorid) 
 {
   Serial.print("UPDATE NEOPIXEL ID:");
   Serial.print(pixelid);
@@ -226,44 +213,13 @@ void updatePixel(int pixelid, int colorid, boolean updatecache)
   Serial.print(" (");
   Serial.print(getColorNameById(colorid));
   Serial.println(")");
-  if(updatecache)
-  {
-    Serial.print("UPDATE PIXELCACHE ID:");
-    Serial.print(pixelid);
-    Serial.print(" with ColorID:");
-    Serial.print(colorid);
-    Serial.print(" (");
-    Serial.print(getColorNameById(colorid));
-    Serial.println(")");
-    ledcache[pixelid] = colorid;
-  }
   pixels.setPixelColor(pixelid, pixels.Color(colorpallet[colorid][1], colorpallet[colorid][0], colorpallet[colorid][2]));
   pixels.show();
-}
-
-//Eine Funktion um vereinfacht die Farben von den RGB-LEDs ändern zu können
-void updatePixel(int pixelid, int colorid) 
-{
-  updatePixel(pixelid, colorid, true);
 }
 
 //Löscht alle Pixels und schaltet sie aus
 void clearPixels()
 {
-  clearPixels(true);
-}
-
-//Löscht alle Pixels und schaltet sie aus
-void clearPixels(boolean updatecache)
-{
-  Serial.println("CLEAR PIXELS");
-  if(updatecache)
-  {
-    for(int i = 0; i < CONF_NUMPIXELS; i++)
-    {
-      ledcache[i] = 0;
-    }
-  }
   pixels.clear();
   pixels.show();
 }
